@@ -18,6 +18,8 @@ import { LoginUserDto } from './dto/login-user.dto';
 import { LoginUserVo } from './vo/login-user.vo';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { UpdateUserPasswordDto } from './dto/update-user-password.dto';
+import { UpdateUserDto } from './vo/udpate-user.dto';
 
 @Injectable()
 export class UserService {
@@ -247,6 +249,94 @@ export class UserService {
       throw new UnauthorizedException('token 已失效，请重新登录');
     }
   }
+
+  async findUserDetailById(userId: number) {
+    const user = await this.userRepository.findOne({
+      where: {
+        id: userId,
+      },
+    });
+
+    return user;
+  }
+
+  /**
+   * 异步更新用户密码。
+   *
+   * 此方法首先验证用户提供的验证码是否有效，然后更新用户的密码。
+   * 它通过检查Redis中存储的验证码来验证用户身份，并对新密码进行MD5加密后保存。
+   * 如果验证码无效或不匹配，将抛出HTTP异常。
+   *
+   * @param userId 用户ID，用于查找和更新用户信息。
+   * @param passwordDto 包含新密码和验证码的数据传输对象。
+   * @returns 返回一个字符串，表示密码更新成功或失败。
+   * @throws 如果验证码无效或不匹配，则抛出HttpException。
+   */
+  async updatePassword(userId: number, passwordDto: UpdateUserPasswordDto) {
+    // 从Redis中获取用户提供的邮箱对应的验证码
+    const captcha = await this.redisService.get(
+      `update_password_captcha_${passwordDto.email}`,
+    );
+
+    // 如果验证码不存在，则抛出异常提示验证码已失效
+    if (!captcha) {
+      throw new HttpException('验证码已失效', HttpStatus.BAD_REQUEST);
+    }
+
+    // 如果用户提供的验证码与存储的验证码不匹配，则抛出异常提示验证码不正确
+    if (passwordDto.captcha !== captcha) {
+      throw new HttpException('验证码不正确', HttpStatus.BAD_REQUEST);
+    }
+
+    // 根据用户ID查找用户
+    const foundUser = await this.userRepository.findOneBy({ id: userId });
+    // 使用MD5加密新密码
+    foundUser.password = md5(passwordDto.password);
+    try {
+      // 尝试保存更新后的用户信息
+      await this.userRepository.save(foundUser);
+      // 返回成功提示信息
+      return '密码修改成功';
+    } catch (e) {
+      // 如果保存失败，记录错误并返回失败提示信息
+      this.logger.error(e, UserService);
+      return '密码修改失败';
+    }
+  }
+
+  async update(userId: number, updateUserDto: UpdateUserDto) {
+    const captcha = await this.redisService.get(
+      `update_user_captcha_${updateUserDto.email}`,
+    );
+
+    if (!captcha) {
+      throw new HttpException('验证码已失效', HttpStatus.BAD_REQUEST);
+    }
+
+    if (updateUserDto.captcha !== captcha) {
+      throw new HttpException('验证码不正确', HttpStatus.BAD_REQUEST);
+    }
+
+    const foundUser = await this.userRepository.findOneBy({
+      id: userId,
+    });
+
+    if (updateUserDto.nickName) {
+      foundUser.nickName = updateUserDto.nickName;
+    }
+    if (updateUserDto.headPic) {
+      foundUser.headPic = updateUserDto.headPic;
+    }
+
+    try {
+      await this.userRepository.save(foundUser);
+      return '用户信息修改成功';
+    } catch (e) {
+      this.logger.error(e, UserService);
+      return '用户信息修改成功';
+    }
+  }
+
   async initData() {
     const user1 = new User();
     user1.username = 'zhangsan';
