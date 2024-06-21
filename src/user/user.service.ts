@@ -9,7 +9,7 @@ import {
 import { RegisterUserDto } from './user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
-import { Repository } from 'typeorm';
+import { Like, Repository } from 'typeorm';
 import { RedisService } from 'src/redis/redis.service';
 import { md5 } from 'src/utils';
 import { Role } from './entities/role.entity';
@@ -337,6 +337,85 @@ export class UserService {
     }
   }
 
+  /**
+   * 异步冻结指定ID的用户。
+   *
+   * 本函数通过查询用户仓库，找到指定ID的用户对象，并将其冻结状态设置为true，
+   * 最后保存更新后的用户对象到数据库。冻结用户意味着该用户将无法进行某些操作，
+   * 具体的冻结逻辑需要在使用本函数的地方实现。
+   *
+   * @param id 用户的唯一标识符。使用此ID来定位并更新用户对象。
+   */
+  async freezeUserById(id: number) {
+    // 根据ID查询用户，等待查询结果返回。
+    const user = await this.userRepository.findOneBy({ id });
+
+    // 将查询到的用户对象的冻结状态设置为true。
+    user.isFrozen = true;
+
+    // 保存更新后的用户对象到数据库，等待保存操作完成。
+    await this.userRepository.save(user);
+  }
+
+  /**
+   * 根据提供的用户名、昵称和电子邮件地址，异步获取用户列表的分页数据。
+   * 此方法实现了对用户数据库的查询，根据提供的筛选条件（用户名、昵称、电子邮件），
+   * 以及分页信息（页码、每页数量），返回匹配条件的用户列表和总用户数。
+   *
+   * @param username - 要查询的用户名，可以是部分字符串。
+   * @param nickName - 要查询的用户昵称，可以是部分字符串。
+   * @param email - 要查询的用户电子邮件地址，可以是部分字符串。
+   * @param pageNo - 当前页码，用于计算跳过多少条记录以实现分页。
+   * @param pageSize - 每页的记录数，用于确定每次查询返回的用户数量。
+   * @returns 返回一个包含用户列表和总用户数的对象，用于前端实现分页展示。
+   */
+  async findUsers(
+    username: string,
+    nickName: string,
+    email: string,
+    pageNo: number,
+    pageSize: number,
+  ) {
+    // 根据页码和每页大小计算需要跳过的记录数。
+    // 计算跳过数量，即当前页之前应该跳过的用户数量。
+    const skipCount = (pageNo - 1) * pageSize;
+
+    // 初始化查询条件对象。
+    const condition: Record<string, any> = {};
+
+    // 如果提供了用户名，则将其作为查询条件之一。
+    if (username) condition.username = Like(`%${username}%`);
+    // 如果提供了昵称，则将其作为查询条件之一。
+    if (nickName) condition.nickName = Like(`%${nickName}%`);
+    // 如果提供了电子邮件，则将其作为查询条件之一。
+    if (email) condition.email = Like(`%${email}%`);
+
+    // 执行查询，返回匹配条件的用户数组和总用户数。
+    // 使用用户仓库的findAndCount方法，查询指定页码的用户列表并获取总用户数。
+    // findAndCount返回一个包含用户数组和用户总数的数组。
+    const [users, totalCount] = await this.userRepository.findAndCount({
+      select: [
+        'id',
+        'username',
+        'nickName',
+        'email',
+        'phoneNumber',
+        'isFrozen',
+        'headPic',
+        'createTime',
+      ],
+      skip: skipCount,
+      take: pageSize,
+      where: condition,
+    });
+
+    // 返回查询结果，包含用户列表和总用户数。
+    // 返回查询结果，包含用户列表和总用户数。
+    return {
+      users,
+      totalCount,
+    };
+  }
   async initData() {
     const user1 = new User();
     user1.username = 'zhangsan';
