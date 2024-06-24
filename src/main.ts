@@ -6,14 +6,20 @@ import { FormatResponseInterceptor } from './format-response.interceptor';
 import { InvokeRecordInterceptor } from './invoke-record.interceptor';
 import { CustomExceptionFilter } from './custom-exception.filter';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   // 验证管道
   app.useGlobalPipes(new ValidationPipe());
   app.useGlobalInterceptors(new FormatResponseInterceptor());
   app.useGlobalInterceptors(new InvokeRecordInterceptor());
   app.useGlobalFilters(new CustomExceptionFilter());
+  // 开启跨域
+  app.enableCors();
+  app.useStaticAssets('uploads', {
+    prefix: '/uploads',
+  });
 
   // swagger接口文档
   const config = new DocumentBuilder()

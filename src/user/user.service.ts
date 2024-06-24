@@ -170,6 +170,7 @@ export class UserService {
       id: user.id,
       username: user.username,
       isAdmin: user.isAdmin,
+      email: user.email,
       roles: user.roles.map((item) => item.name), // 提取角色名称列表
       permissions: user.roles.reduce((arr, item) => {
         item.permissions.forEach((permission) => {
@@ -190,6 +191,7 @@ export class UserService {
         userId: vo.userInfo.id,
         username: vo.userInfo.username,
         roles: vo.userInfo.roles,
+        email: vo.userInfo.email,
         permissions: vo.userInfo.permissions,
       },
       {
@@ -224,6 +226,7 @@ export class UserService {
           userId: user.id,
           username: user.username,
           roles: user.roles,
+          email: user.email,
           permissions: user.permissions,
         },
         {
@@ -271,12 +274,11 @@ export class UserService {
    * 它通过检查Redis中存储的验证码来验证用户身份，并对新密码进行MD5加密后保存。
    * 如果验证码无效或不匹配，将抛出HTTP异常。
    *
-   * @param userId 用户ID，用于查找和更新用户信息。
    * @param passwordDto 包含新密码和验证码的数据传输对象。
    * @returns 返回一个字符串，表示密码更新成功或失败。
    * @throws 如果验证码无效或不匹配，则抛出HttpException。
    */
-  async updatePassword(userId: number, passwordDto: UpdateUserPasswordDto) {
+  async updatePassword(passwordDto: UpdateUserPasswordDto) {
     // 从Redis中获取用户提供的邮箱对应的验证码
     const captcha = await this.redisService.get(
       `update_password_captcha_${passwordDto.email}`,
@@ -293,7 +295,13 @@ export class UserService {
     }
 
     // 根据用户ID查找用户
-    const foundUser = await this.userRepository.findOneBy({ id: userId });
+    const foundUser = await this.userRepository.findOneBy({
+      username: passwordDto.username,
+    });
+
+    if (foundUser.email !== passwordDto.email) {
+      throw new HttpException('邮箱不正确', HttpStatus.BAD_REQUEST);
+    }
     // 使用MD5加密新密码
     foundUser.password = md5(passwordDto.password);
     try {
