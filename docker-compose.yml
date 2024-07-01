@@ -1,0 +1,31 @@
+version: '3.8'
+services:
+  nest-app:
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
+    depends_on:
+      - mysql-container
+      - redis-container
+    ports:
+      - 3000:3000
+    networks:
+      - common-network
+  mysql-container:
+    image: mysql
+    volumes:
+      - /C:/Users/v_clwchen/Desktop/mysql:/var/lib/mysql
+    environment:
+      MYSQL_DATABASE: meeting_room_booking_system
+      MYSQL_ROOT_PASSWORD: 123
+    networks:
+      - common-network
+  redis-container:
+    image: redis
+    volumes:
+      - /C:/Users/v_clwchen/Desktop/redis:/data
+    networks:
+      - common-network
+networks:
+  common-network:
+    driver: bridge

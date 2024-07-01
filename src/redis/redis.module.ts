@@ -20,6 +20,10 @@ import { ConfigService } from '@nestjs/config';
        * @returns {Promise<RedisClient>} 返回一个Promise，解析为已连接的Redis客户端实例。
        */
       async useFactory(configService: ConfigService) {
+        console.log(
+          'configService.get(redis_server_host)',
+          configService.get('redis_server_host'),
+        );
         // 创建Redis客户端实例，配置包括主机、端口和数据库号。
         const client = createClient({
           socket: {

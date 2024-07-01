@@ -23,7 +23,7 @@ import { ConfigService } from '@nestjs/config';
 import { RequireLogin, UserInfo } from 'src/custom.decorator';
 import { UserDetailVo } from './vo/user-info.vo';
 import { UpdateUserPasswordDto } from './dto/update-user-password.dto';
-import { UpdateUserDto } from './vo/udpate-user.dto';
+import { UpdateUserDto } from './dto/udpate-user.dto';
 import { generateParseIntPipe } from 'src/utils';
 import {
   ApiBearerAuth,
@@ -38,6 +38,7 @@ import { userInfo } from 'os';
 import { FileInterceptor } from '@nestjs/platform-express';
 import * as path from 'path';
 import { storage } from 'src/my-file-storage';
+import { UploadDto } from './dto/upload.dto';
 
 @ApiTags('用户管理模块')
 @Controller('user')
@@ -371,6 +372,9 @@ export class UserController {
     );
   }
 
+  @ApiBearerAuth()
+  @ApiBody({ type: UploadDto })
+  @RequireLogin()
   @Post('upload')
   @UseInterceptors(
     FileInterceptor('file', {
@@ -390,7 +394,6 @@ export class UserController {
     }),
   )
   uploadFile(@UploadedFile() file: Express.Multer.File) {
-    console.log('file', file);
     return file.path;
   }
 }

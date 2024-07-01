@@ -19,7 +19,7 @@ import { LoginUserVo } from './vo/login-user.vo';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { UpdateUserPasswordDto } from './dto/update-user-password.dto';
-import { UpdateUserDto } from './vo/udpate-user.dto';
+import { UpdateUserDto } from './dto/udpate-user.dto';
 import { RefreshTokenVo } from './vo/refresh-token.vo';
 import { UserListVo } from './vo/user-list.vo';
 
